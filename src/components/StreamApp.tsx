@@ -134,8 +134,7 @@ const StreamApp: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-stream-dark' : 'bg
--stream-light'} transition-all duration-300`}>
+    <div className={`min-h-screen ${isDarkMode ? 'bg-stream-dark' : 'bg-stream-light'} transition-all duration-300`}>
       <Navbar 
         onSearch={handleSearch} 
         onToggleDarkMode={toggleDarkMode} 
