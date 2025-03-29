@@ -7,6 +7,7 @@ import VideoPlayer from './VideoPlayer';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Category {
   category_id: number;
@@ -32,9 +33,19 @@ const StreamApp: React.FC = () => {
   const [currentStream, setCurrentStream] = useState('');
   const [loading, setLoading] = useState(true);
   const [channelsPerLoad, setChannelsPerLoad] = useState(20);
+  const [showWelcome, setShowWelcome] = useState(true);
+  
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     loadCategories();
+    
+    // Hide welcome message after 5 seconds
+    const timer = setTimeout(() => {
+      setShowWelcome(false);
+    }, 5000);
+    
+    return () => clearTimeout(timer);
   }, []);
   
   const loadCategories = async () => {
@@ -141,18 +152,25 @@ const StreamApp: React.FC = () => {
         isDarkMode={isDarkMode} 
       />
       
-      <main className="container mx-auto py-8 px-4">
+      {/* Welcome Notice */}
+      {showWelcome && (
+        <div className="fixed top-16 left-0 right-0 z-10 p-4 bg-stream-primary/90 text-white text-center transform transition-all animate-fade-in">
+          <p className="font-semibold">Welcome to STREAM! Enjoy your favorite channels anytime, anywhere.</p>
+        </div>
+      )}
+      
+      <main className="container mx-auto py-6 px-4">
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-stream-primary" />
           </div>
         ) : selectedCategory === null ? (
           <>
-            <h2 className="text-2xl font-bold mb-8 text-center bg-gradient-to-r from-stream-primary to-stream-accent bg-clip-text text-transparent">
+            <h2 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center bg-gradient-to-r from-stream-primary to-stream-accent bg-clip-text text-transparent">
               Select Your Category
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {categories.map((category, index) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
+              {categories.map((category) => (
                 <CategoryCard 
                   key={category.category_id} 
                   category={category} 
@@ -163,23 +181,24 @@ const StreamApp: React.FC = () => {
           </>
         ) : (
           <>
-            <div className="mb-8">
+            <div className="mb-6">
               <Button 
                 variant="outline" 
                 onClick={backToCategories} 
                 className="flex items-center gap-2 bg-stream-card hover:bg-stream-card-hover border-stream-primary/20"
+                size={isMobile ? "sm" : "default"}
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={isMobile ? 14 : 16} />
                 Back to Categories
               </Button>
             </div>
             
-            <h2 className="text-2xl font-bold mb-8 text-center bg-gradient-to-r from-stream-primary to-stream-accent bg-clip-text text-transparent">
+            <h2 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center bg-gradient-to-r from-stream-primary to-stream-accent bg-clip-text text-transparent">
               Select a Channel
             </h2>
             
             {displayedChannels.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
                 {displayedChannels.map((channel) => (
                   <ChannelCard 
                     key={channel.stream_id} 
@@ -195,10 +214,11 @@ const StreamApp: React.FC = () => {
             )}
             
             {channels.length > displayedChannels.length && (
-              <div className="flex justify-center mt-8">
+              <div className="flex justify-center mt-6 md:mt-8">
                 <Button 
                   onClick={loadMoreChannels}
                   className="bg-stream-primary hover:bg-stream-secondary"
+                  size={isMobile ? "sm" : "default"}
                 >
                   Load More
                 </Button>
