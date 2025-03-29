@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { mockCategories, mockChannels } from '@/data/mockData';
 
 interface Category {
   category_id: number;
@@ -21,7 +22,8 @@ interface Channel {
 }
 
 const StreamApp: React.FC = () => {
-  const baseUrl = 'http://filex.tv:8080/player_api.php?username=zulfikarsh01&password=000576';
+  // Using HTTPS for the API URL to prevent mixed content issues
+  const baseUrl = 'https://cors-anywhere.herokuapp.com/http://filex.tv:8080/player_api.php?username=zulfikarsh01&password=000576';
   
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -34,6 +36,7 @@ const StreamApp: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [channelsPerLoad, setChannelsPerLoad] = useState(20);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [usingMockData, setUsingMockData] = useState(false);
   
   const isMobile = useIsMobile();
   
@@ -51,24 +54,36 @@ const StreamApp: React.FC = () => {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${baseUrl}&action=get_live_categories`);
+      
+      // Try to fetch real data
+      const response = await fetch(baseUrl + '&action=get_live_categories', {
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (Array.isArray(data) && data.length > 0) {
         setCategories(data);
       } else {
-        toast({
-          title: "Error",
-          description: "No categories found or invalid response.",
-          variant: "destructive"
-        });
+        throw new Error("Invalid API response format");
       }
     } catch (error) {
       console.error('Error loading categories:', error);
+      // Fall back to mock data
+      setCategories(mockCategories);
+      setUsingMockData(true);
       toast({
-        title: "Connection Error",
-        description: "Failed to load categories. Please check your connection.",
-        variant: "destructive"
+        title: "Using Demo Mode",
+        description: "Unable to connect to the live server. Using demo data instead.",
+        variant: "default"
       });
     } finally {
       setLoading(false);
@@ -79,27 +94,46 @@ const StreamApp: React.FC = () => {
     setSelectedCategory(categoryId);
     try {
       setLoading(true);
-      const response = await fetch(`${baseUrl}&action=get_live_streams&category_id=${categoryId}`);
-      const data = await response.json();
       
-      if (Array.isArray(data) && data.length > 0) {
-        setChannels(data);
-        setDisplayedChannels(data.slice(0, channelsPerLoad));
+      if (usingMockData) {
+        // Use mock data since we're in demo mode
+        setChannels(mockChannels);
+        setDisplayedChannels(mockChannels.slice(0, channelsPerLoad));
       } else {
-        toast({
-          title: "No Channels",
-          description: "No channels found in this category.",
-        });
-        setChannels([]);
-        setDisplayedChannels([]);
+        const response = await fetch(`${baseUrl}&action=get_live_streams&category_id=${categoryId}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (Array.isArray(data) && data.length > 0) {
+          setChannels(data);
+          setDisplayedChannels(data.slice(0, channelsPerLoad));
+        } else {
+          toast({
+            title: "No Channels",
+            description: "No channels found in this category.",
+          });
+          setChannels([]);
+          setDisplayedChannels([]);
+        }
       }
     } catch (error) {
       console.error('Error loading channels:', error);
-      toast({
-        title: "Connection Error",
-        description: "Failed to load channels. Please check your connection.",
-        variant: "destructive"
-      });
+      
+      if (!usingMockData) {
+        // If this is the first error, switch to mock data
+        setChannels(mockChannels);
+        setDisplayedChannels(mockChannels.slice(0, channelsPerLoad));
+        setUsingMockData(true);
+        toast({
+          title: "Using Demo Mode",
+          description: "Unable to connect to the channel server. Using demo data instead.",
+          variant: "default"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -114,6 +148,16 @@ const StreamApp: React.FC = () => {
   };
   
   const playStream = (streamId: string) => {
+    if (usingMockData) {
+      // For demo mode, just show a message
+      toast({
+        title: "Demo Mode",
+        description: "Video playback is not available in demo mode.",
+        variant: "default"
+      });
+      return;
+    }
+    
     const streamUrl = `${baseUrl.split('/player_api.php')[0]}/live/zulfikarsh01/000576/${streamId}.m3u8`;
     setCurrentStream(streamUrl);
     setIsPlayerOpen(true);
@@ -155,7 +199,19 @@ const StreamApp: React.FC = () => {
       {/* Welcome Notice */}
       {showWelcome && (
         <div className="fixed top-16 left-0 right-0 z-10 p-4 bg-stream-primary/90 text-white text-center transform transition-all animate-fade-in">
-          <p className="font-semibold">Welcome to STREAM! Enjoy your favorite channels anytime, anywhere.</p>
+          <p className="font-semibold">
+            {usingMockData 
+              ? "Welcome to STREAM DEMO! Currently running in demo mode with sample data." 
+              : "Welcome to STREAM! Enjoy your favorite channels anytime, anywhere."}
+          </p>
+        </div>
+      )}
+      
+      {usingMockData && (
+        <div className="bg-yellow-500/20 border-l-4 border-yellow-500 p-4 text-yellow-700 mb-4">
+          <p className="text-sm font-medium">
+            Demo Mode: Using sample data. Live streaming features are limited.
+          </p>
         </div>
       )}
       
